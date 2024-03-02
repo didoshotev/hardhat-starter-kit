@@ -12,7 +12,8 @@
     "lint:fix": "solhint 'contracts/**/*.sol' --fix",
     "format": "prettier --write .",
     "coverage": "hardhat coverage --solcoverjs ./.solcover.js",
-    "fuzzing": "docker run -it --rm -v $PWD:/src trailofbits/eth-security-toolbox"
+    "fuzzing": "docker run -it --rm -v $PWD:/src trailofbits/eth-security-toolbox",
+    "start-fork": "npx hardhat node --network hardhat"
   },
   "devDependencies": {
     "@chainlink/contracts": "0.5.1",

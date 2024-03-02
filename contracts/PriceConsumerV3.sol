@@ -44,7 +44,7 @@ contract PriceConsumerV3 {
      *
      * @return Price Feed address
      */
-    function getPriceFeed() public view returns (AggregatorV3Interface) {
+    function getPriceFeedAddress() public view returns (AggregatorV3Interface) {
         return priceFeed;
     }
 }

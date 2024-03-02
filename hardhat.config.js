@@ -12,6 +12,9 @@ const COMPILER_SETTINGS = {
     },
 }
 
+const BSC_MAINNET_RPC_URL = process.env.BSC_MAINNET_RPC_URL || "https://bsc-dataseed.binance.org/"
+const BSC_TESTNET_RPC_URL = process.env.BSC_TESTNET_RPC_URL || "https://data-seed-prebsc-1-s1.binance.org:8545/"
+
 const MAINNET_RPC_URL =
     process.env.MAINNET_RPC_URL ||
     process.env.ALCHEMY_MAINNET_RPC_URL ||
@@ -52,12 +55,12 @@ module.exports = {
     },
     networks: {
         hardhat: {
-            hardfork: "merge",
+            // hardfork: "merge",
             // If you want to do some forking set `enabled` to true
             forking: {
-                url: MAINNET_RPC_URL,
-                blockNumber: FORKING_BLOCK_NUMBER,
-                enabled: false,
+                url: BSC_MAINNET_RPC_URL,
+                // blockNumber: 36581273,
+                enabled: true,
             },
             chainId: 31337,
         },
@@ -67,17 +70,11 @@ module.exports = {
         sepolia: {
             url: SEPOLIA_RPC_URL !== undefined ? SEPOLIA_RPC_URL : "",
             accounts: PRIVATE_KEY !== undefined ? [PRIVATE_KEY] : [],
-            //   accounts: {
-            //     mnemonic: MNEMONIC,
-            //   },
             chainId: 11155111,
         },
         mainnet: {
             url: MAINNET_RPC_URL,
             accounts: PRIVATE_KEY !== undefined ? [PRIVATE_KEY] : [],
-            //   accounts: {
-            //     mnemonic: MNEMONIC,
-            //   },
             chainId: 1,
         },
         polygon: {
@@ -89,6 +86,16 @@ module.exports = {
             url: MUMBAI_RPC_URL,
             accounts: PRIVATE_KEY !== undefined ? [PRIVATE_KEY] : [],
             chainId: 80001,
+        },
+        bsc_mainnet: {
+            url: BSC_MAINNET_RPC_URL,
+            accounts: PRIVATE_KEY !== undefined ? [PRIVATE_KEY] : [],
+            chainId: 56,
+        },
+        bsc_testnet: {
+            url: BSC_TESTNET_RPC_URL,
+            accounts: PRIVATE_KEY !== undefined ? [PRIVATE_KEY] : [],
+            chainId: 97,
         },
     },
     defaultNetwork: "hardhat",

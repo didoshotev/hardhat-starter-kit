@@ -58,6 +58,14 @@ const networkConfig = {
         fundAmount: "100000000000000000", // 0.1
         automationUpdateInterval: "30",
     },
+    56: {
+        name: "bsc",
+        linkToken: "0xF8A0BF9cF54Bb92F17374d9e9A321E6a111a51bD",
+        ethUsdPriceFeed: "0x0567F2323251f0Aab15c8dFb1967E4e8A7D42aeE" // BNB/USD
+        // fundAmount: "0", // Update with the desired initial funding amount
+        // automationUpdateInterval: "30", // Update with the desired automation update interval
+        // Add any other specific configuration parameters for BSC
+    },
 }
 
 const developmentChains = ["hardhat", "localhost"]
