@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 import "hardhat/console.sol";
 
-contract RawCrowdsale is Ownable, ReentrancyGuard {
+contract Crowdsale is Ownable, ReentrancyGuard {
     // The token being sold
     ERC20 public token;
 
@@ -21,55 +21,50 @@ contract RawCrowdsale is Ownable, ReentrancyGuard {
     // Amount of wei raised
     uint256 public weiRaised;
 
-    uint256 public tokenRate; // private ?
     uint8 public decimals;
 
     uint256 private tokenPrice;
 
-    event TokensPurchased(address indexed buyer, uint256 amount);
+    event TokensPurchasedWithNativeCurrency(
+        address indexed buyer,
+        uint256 amount
+    );
+    event TokensPurchasedWithNativeStableCoin(
+        address indexed buyer,
+        uint256 amount,
+        address tokenAddress
+    );
 
     constructor(
-        uint256 _rate,
         address payable _wallet,
         ERC20 _token,
-        address _aggregatorAddress
+        address _aggregatorAddress,
+        uint256 _initialTokenPrice
     ) {
-        require(_rate > 0);
+        require(_initialTokenPrice > 0);
         require(_wallet != address(0));
 
         wallet = _wallet;
         token = _token;
         priceFeed = AggregatorV3Interface(_aggregatorAddress);
         weiRaised = 0;
-        tokenRate = 20;
-        decimals = 1;
-        tokenPrice = 2 * 1e16; // $0.02
+        tokenPrice = _initialTokenPrice; // $0.02
     }
 
     fallback() external payable {
-        console.log("FALLBACK activated...");
-        // buyTokensWithNativeCurrency();
+        buyTokensWithNativeCurrency();
     }
 
     receive() external payable {
-        console.log("RECEIVE activated...");
-        // buyTokensWithNativeCurrency();
+        buyTokensWithNativeCurrency();
     }
 
-    // TODO: fix
     function buyTokensWithNativeCurrency() public payable nonReentrant {
-        (, int256 latestPrice, , , ) = priceFeed.latestRoundData();
-        console.log("tokenPrice: ", tokenPrice);
-
-        uint256 latestPriceInWei = uint256(latestPrice) * 1e10; // 10000000000
-        uint256 value = (latestPriceInWei * msg.value);
-
-        uint256 tokensToSend = value / tokenPrice;
-        uint256 tokensToSendInEther = tokensToSend / 1e18;
-
+        uint256 tokensToSendInEther = getTokensAmountForNativeCurrency(
+            msg.value
+        );
         weiRaised += msg.value;
 
-        // Ensure that the contract has been approved to spend tokens on behalf of the sender
         require(
             token.allowance(owner(), address(this)) >= tokensToSendInEther,
             "Contract not approved to spend tokens"
@@ -79,7 +74,20 @@ contract RawCrowdsale is Ownable, ReentrancyGuard {
             token.transferFrom(owner(), msg.sender, tokensToSendInEther),
             "Token transfer failed"
         );
-        emit TokensPurchased(msg.sender, tokensToSendInEther);
+        emit TokensPurchasedWithNativeCurrency(msg.sender, tokensToSendInEther);
+    }
+
+    function getTokensAmountForNativeCurrency(
+        uint256 nativeCurrencyValue
+    ) public view returns (uint256) {
+        (, int256 latestPrice, , , ) = priceFeed.latestRoundData();
+
+        uint256 latestPriceInWei = uint256(latestPrice) * 1e10;
+        uint256 value = latestPriceInWei * nativeCurrencyValue;
+
+        uint256 tokensToSend = value / tokenPrice;
+        uint256 tokensToSendInEther = tokensToSend / 1e18;
+        return tokensToSendInEther;
     }
 
     // @param usdtAmount - amount of usdt in wei to be send
@@ -91,7 +99,6 @@ contract RawCrowdsale is Ownable, ReentrancyGuard {
         require(usdtAmount >= 1e6, "Minimum buy amount not satisfied");
 
         IERC20 stableCoin = IERC20(stableCoinAddress);
-        uint256 currAllowance = stableCoin.allowance(msg.sender, address(this));
 
         // Ensure that the contract has been approved to spend USDT tokens on behalf of the sender
         require(
@@ -99,49 +106,28 @@ contract RawCrowdsale is Ownable, ReentrancyGuard {
             "Contract not approved to spend tokens"
         );
 
-        // Transfer USDT tokens from the sender to this contract
         require(
             stableCoin.transferFrom(msg.sender, owner(), usdtAmount),
             "USDT transfer failed"
         );
-        console.log("usdtAmount: ", usdtAmount);
 
-        // TODO: test if you change the value and that still works
-        uint256 numberOfTokens = getTokensAmountForStableCoin(usdtAmount);
-
-        uint256 tokensFLIFormatted = numberOfTokens / 1e6;
-
-        console.log("We must give: ", numberOfTokens, "FLI");
-        console.log("Formatted FLI: ", tokensFLIFormatted);
-
-        // uint256 tokenAmountInWei = (
-        //     divider(valueOfBNBInWei, tokenRate, decimals)
-        // ) * 100;
-        // uint256 numberOfFLITokens = tokenAmountInEther / tokenPriceInUSDT;
+        uint256 tokensToSend = getTokensAmountForStableCoin(usdtAmount);
 
         require(
-            token.transferFrom(owner(), msg.sender, numberOfTokens),
+            token.transferFrom(owner(), msg.sender, tokensToSend),
             "FLI Token transfer failed"
         );
-
-        // Calculate the equivalent token amount based on the USDT value
-        console.log("success...!");
-        // emit TokensPurchased(msg.sender, tokenAmountInEther);
+        emit TokensPurchasedWithNativeStableCoin(
+            msg.sender,
+            tokensToSend,
+            stableCoinAddress
+        );
     }
 
     function getTokensAmountForStableCoin(
         uint256 _paymentAmount
     ) public view returns (uint256) {
-        uint256 currDecimals = 7;
-        return
-            (_paymentAmount * (10 ** uint256(currDecimals))) /
-            (tokenRate * 10 ** 6);
-    }
-
-    function getTokensAmountForNativeCurrency(
-        uint256 nativeCurrencyValue
-    ) public view returns (uint256) {
-        return (divider(nativeCurrencyValue, tokenRate, decimals)) * 100;
+        return (_paymentAmount * 1e12) / tokenPrice;
     }
 
     function getLatestPriceOfBNB() public view returns (int) {
@@ -186,20 +172,7 @@ contract RawCrowdsale is Ownable, ReentrancyGuard {
         tokenPrice = newPrice;
     }
 
-    function changeTokenRate(uint256 newRate) external onlyOwner {
-        tokenRate = newRate;
-    }
-
-    function changeDividerDecimals(uint8 newDecimals) external onlyOwner {
-        decimals = newDecimals;
-    }
-
-    // Helper function
-    function divider(
-        uint numerator,
-        uint denominator,
-        uint precision
-    ) public pure returns (uint) {
-        return (numerator * (uint(10) ** uint(precision))) / denominator;
+    function getTokenPrice() public view returns (uint256) {
+        return tokenPrice;
     }
 }
