@@ -24,6 +24,8 @@ contract RawCrowdsale is Ownable, ReentrancyGuard {
     uint256 public tokenRate; // private ?
     uint8 public decimals;
 
+    uint256 private tokenPrice;
+
     event TokensPurchased(address indexed buyer, uint256 amount);
 
     constructor(
@@ -39,53 +41,45 @@ contract RawCrowdsale is Ownable, ReentrancyGuard {
         token = _token;
         priceFeed = AggregatorV3Interface(_aggregatorAddress);
         weiRaised = 0;
-        tokenRate = 20; // $0.02
+        tokenRate = 20;
         decimals = 1;
+        tokenPrice = 2 * 1e16; // $0.02
     }
 
     fallback() external payable {
         console.log("FALLBACK activated...");
-        buyTokensWithNativeCurrency();
+        // buyTokensWithNativeCurrency();
     }
 
     receive() external payable {
         console.log("RECEIVE activated...");
-        buyTokensWithNativeCurrency();
+        // buyTokensWithNativeCurrency();
     }
 
     // TODO: fix
     function buyTokensWithNativeCurrency() public payable nonReentrant {
         (, int256 latestPrice, , , ) = priceFeed.latestRoundData();
+        console.log("tokenPrice: ", tokenPrice);
 
-        // Convert the latest BNB price to a uint256 with 18 decimals
-        // uint256 latestPriceInWei = uint256(latestPrice) * 1e10; // Convert to 18 decimals
-        uint256 latestPriceInEther = uint256(latestPrice) / 1e8;
+        uint256 latestPriceInWei = uint256(latestPrice) * 1e10; // 10000000000
+        uint256 value = (latestPriceInWei * msg.value);
 
-        uint256 valueOfBNBInWei = msg.value * latestPriceInEther;
+        uint256 tokensToSend = value / tokenPrice;
+        uint256 tokensToSendInEther = tokensToSend / 1e18;
+
         weiRaised += msg.value;
-
-        // uint256 tokenAmountInWei = (valueOfBNBInWei / 2.5) * 100;
-        // uint256 tokenAmountInWei = (divider(valueOfBNBInWei, 25, 1)) * 100;
-        // uint256 tokenAmountInWei = (
-        //     divider(valueOfBNBInWei, tokenRate, decimals)
-        // ) * 100;
-        uint256 tokenAmountInWei = getTokensAmountForNativeCurrency(
-            valueOfBNBInWei
-        );
-        uint256 tokenAmountInEther = tokenAmountInWei / 1e18;
 
         // Ensure that the contract has been approved to spend tokens on behalf of the sender
         require(
-            token.allowance(owner(), address(this)) >= tokenAmountInEther,
+            token.allowance(owner(), address(this)) >= tokensToSendInEther,
             "Contract not approved to spend tokens"
         );
 
         require(
-            token.transferFrom(owner(), msg.sender, tokenAmountInEther),
+            token.transferFrom(owner(), msg.sender, tokensToSendInEther),
             "Token transfer failed"
         );
-
-        emit TokensPurchased(msg.sender, tokenAmountInEther);
+        emit TokensPurchased(msg.sender, tokensToSendInEther);
     }
 
     // @param usdtAmount - amount of usdt in wei to be send
@@ -150,11 +144,6 @@ contract RawCrowdsale is Ownable, ReentrancyGuard {
         return (divider(nativeCurrencyValue, tokenRate, decimals)) * 100;
     }
 
-    // Function to calculate the amount of tokens based on the amount of payment
-    function calculateTokens(
-        uint256 _paymentAmount
-    ) public view returns (uint256) {}
-
     function getLatestPriceOfBNB() public view returns (int) {
         (
             uint80 roundID,
@@ -190,6 +179,11 @@ contract RawCrowdsale is Ownable, ReentrancyGuard {
         } else {
             require(token.transfer(owner(), amount), "Token transfer failed");
         }
+    }
+
+    // in wei
+    function changeTokenPrice(uint256 newPrice) external onlyOwner {
+        tokenPrice = newPrice;
     }
 
     function changeTokenRate(uint256 newRate) external onlyOwner {
