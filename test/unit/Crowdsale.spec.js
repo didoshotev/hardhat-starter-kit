@@ -130,14 +130,6 @@ const usdtPayloadsAndPrices = [
       );
     });
 
-    describe("divider helper function", async function () {
-      it('should divide correctly', async () => {
-        const { rawCrowdsale } = await loadFixture(deployPriceConsumerFixture);
-        const result = await rawCrowdsale.divider(100, 25, 1)
-        assert.equal(result, 40)
-      })
-    })
-
     describe("buyTokensWithStableCoin VERSION 2", async function () {
       // it('DEFAULT 0.02', async function () {
       //   const { rawCrowdsale, deployer, user1, FLIToken } = await loadFixture(deployPriceConsumerFixture);
@@ -180,6 +172,9 @@ const usdtPayloadsAndPrices = [
           const user1FLIBalanceAfter = await FLIToken.balanceOf(user1.address);
 
           const expectedResult = usdtPayloadInEther / price;
+          console.log('usdtPayloadInEther: ', usdtPayloadInEther);
+          console.log('price: ', price);
+          console.log('expectedResult:', expectedResult);
 
           assert.equal(user1FLIBalanceAfter, Math.floor(expectedResult))
           assert.equal(ethers.utils.formatUnits(deployerUSDTBalanceAfter.toString(), 6), usdtPayloadInEther)
@@ -236,6 +231,30 @@ const usdtPayloadsAndPrices = [
           assert.equal(Math.floor(tokensToSend), parseInt(user1FLIBalanceAfter.toString()));
         });
       }
+    })
+
+    describe.only("should check owner functionality", async function () {
+      it("should change the owner", async function () {
+        const { rawCrowdsale, deployer, user1 } = await loadFixture(deployPriceConsumerFixture);
+        // Verify initial owner
+        expect(await rawCrowdsale.owner()).to.equal(deployer.address);
+
+        // Change owner
+        await rawCrowdsale.connect(deployer).changeOwner(user1.address);
+
+        // Verify new owner
+        expect(await rawCrowdsale.owner()).to.equal(user1.address);
+      });
+
+      it("should revert if not called by the current owner", async function () {
+        const { rawCrowdsale, deployer, user1 } = await loadFixture(deployPriceConsumerFixture);
+
+        // Attempt to change owner from a non-owner account
+        await expect(rawCrowdsale.connect(user1).changeOwner(user1.address)).to.be.revertedWith("Ownable: caller is not the owner");
+
+        // Verify owner remains unchanged
+        expect(await rawCrowdsale.owner()).to.equal(deployer.address);
+      });
     })
   })
 

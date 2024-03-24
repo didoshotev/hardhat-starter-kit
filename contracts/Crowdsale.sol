@@ -175,4 +175,9 @@ contract Crowdsale is Ownable, ReentrancyGuard {
     function getTokenPrice() public view returns (uint256) {
         return tokenPrice;
     }
+
+    function changeOwner(address newOwner) public onlyOwner {
+        require(newOwner != address(0), "Invalid new owner address");
+        transferOwnership(newOwner);
+    }
 }
